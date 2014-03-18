@@ -25,38 +25,38 @@ class RankingsCalculator(object):
             diff = int(row[3]) - int(row[5])
             win_team_dict = self.reg_season[season].get(wteam,
                                                    {'wins': 0,
-                                                    'home wins': 0,
-                                                    'neutral wins': 0,
+                                                    'home_wins': 0,
+                                                    'neutral_wins': 0,
                                                     'losses': 0,
-                                                    'home losses': 0,
-                                                    'neutral losses': 0,
+                                                    'home_losses': 0,
+                                                    'neutral_losses': 0,
                                                     'opponents': [],
-                                                    'net score': 0}
+                                                    'net_score': 0}
                                                     )
 
             lose_team_dict = self.reg_season[season].get(lteam,
                                                    {'wins': 0,
-                                                    'home wins': 0,
-                                                    'neutral wins': 0,
+                                                    'home_wins': 0,
+                                                    'neutral_wins': 0,
                                                     'losses': 0,
-                                                    'home losses': 0,
-                                                    'neutral losses': 0,
+                                                    'home_losses': 0,
+                                                    'neutral_losses': 0,
                                                     'opponents': [],
-                                                    'net score': 0}
+                                                    'net_score': 0}
                                                     )
             win_team_dict['wins'] += 1
             lose_team_dict['losses'] += 1
             win_team_dict['opponents'].append((lteam, 'W'))
             lose_team_dict['opponents'].append((wteam, 'L'))
-            win_team_dict['net score'] += diff
-            lose_team_dict['net score'] -= diff
+            win_team_dict['net_score'] += diff
+            lose_team_dict['net_score'] -= diff
             if row[6] == 'H':
-                win_team_dict['home wins'] += 1
+                win_team_dict['home_wins'] += 1
             elif row[6] == 'A':
-                lose_team_dict['home losses'] += 1
+                lose_team_dict['home_losses'] += 1
             else:
-                win_team_dict['neutral wins'] += 1
-                lose_team_dict['neutral losses'] += 1
+                win_team_dict['neutral_wins'] += 1
+                lose_team_dict['neutral_losses'] += 1
             self.reg_season[season][wteam] = win_team_dict
             self.reg_season[season][lteam] = lose_team_dict
 
@@ -87,12 +87,12 @@ class RankingsCalculator(object):
 
     def calc_WP(self, season, team):
         team_dict = self.reg_season[season][team]
-        num = team_dict['neutral wins'] + 0.6 * team_dict['home wins'] + 1.4 * (team_dict['wins']
-                                                                                   - team_dict['home wins']
-                                                                                   - team_dict['neutral wins'])
-        denom = team_dict['neutral losses'] + 1.4 * team_dict['home losses'] + 0.6 * (team_dict['losses']
-                                                                                   - team_dict['home losses']
-                                                                                   - team_dict['neutral losses'])
+        num = team_dict['neutral_wins'] + 0.6 * team_dict['home_wins'] + 1.4 * (team_dict['wins']
+                                                                                   - team_dict['home_wins']
+                                                                                   - team_dict['neutral_wins'])
+        denom = team_dict['neutral_losses'] + 1.4 * team_dict['home_losses'] + 0.6 * (team_dict['losses']
+                                                                                   - team_dict['home_losses']
+                                                                                   - team_dict['neutral_losses'])
         return num / (num + denom)
 
     def calc_OWP(self, season, team):
