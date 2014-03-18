@@ -4,73 +4,101 @@ import csv
 from collections import defaultdict
 import numpy as np
 
+
 class RankingsCalculator(object):
 
-    def __init__(self, reg_season, tourney):
+    def __init__(self, reg_season, tourney, seeds):
 
         self.reg_season = defaultdict(dict)
         self.tourney = defaultdict(dict)
+        self.tourney_seeds = defaultdict(dict)
 
         self._process_regular(reg_season)
         self._process_tourney(tourney)
-
+        self._process_seeds(seeds)
 
     def _process_regular(self, filename):
-        team_stuff = csv.reader(open(filename, 'r'))
-        team_stuff.next()
-        for row in team_stuff:
-            season = row[0]
-            wteam = row[2]
-            lteam = row[4]
-            diff = int(row[3]) - int(row[5])
-            win_team_dict = self.reg_season[season].get(wteam,
-                                                   {'wins': 0,
-                                                    'home_wins': 0,
-                                                    'neutral_wins': 0,
-                                                    'losses': 0,
-                                                    'home_losses': 0,
-                                                    'neutral_losses': 0,
-                                                    'opponents': [],
-                                                    'net_score': 0}
-                                                    )
+        with open(filename, 'r') as f:
+            team_stuff = csv.reader(f)
+            team_stuff.next()
+            for row in team_stuff:
+                season = row[0]
+                wteam = row[2]
+                lteam = row[4]
+                diff = int(row[3]) - int(row[5])
+                win_team_dict = self.reg_season[season].get(wteam,
+                                                       {'wins': 0,
+                                                        'home_wins': 0,
+                                                        'neutral_wins': 0,
+                                                        'losses': 0,
+                                                        'home_losses': 0,
+                                                        'neutral_losses': 0,
+                                                        'opponents': [],
+                                                        'net_score': 0}
+                                                        )
 
-            lose_team_dict = self.reg_season[season].get(lteam,
-                                                   {'wins': 0,
-                                                    'home_wins': 0,
-                                                    'neutral_wins': 0,
-                                                    'losses': 0,
-                                                    'home_losses': 0,
-                                                    'neutral_losses': 0,
-                                                    'opponents': [],
-                                                    'net_score': 0}
-                                                    )
-            win_team_dict['wins'] += 1
-            lose_team_dict['losses'] += 1
-            win_team_dict['opponents'].append((lteam, 'W'))
-            lose_team_dict['opponents'].append((wteam, 'L'))
-            win_team_dict['net_score'] += diff
-            lose_team_dict['net_score'] -= diff
-            if row[6] == 'H':
-                win_team_dict['home_wins'] += 1
-            elif row[6] == 'A':
-                lose_team_dict['home_losses'] += 1
-            else:
-                win_team_dict['neutral_wins'] += 1
-                lose_team_dict['neutral_losses'] += 1
-            self.reg_season[season][wteam] = win_team_dict
-            self.reg_season[season][lteam] = lose_team_dict
+                lose_team_dict = self.reg_season[season].get(lteam,
+                                                       {'wins': 0,
+                                                        'home_wins': 0,
+                                                        'neutral_wins': 0,
+                                                        'losses': 0,
+                                                        'home_losses': 0,
+                                                        'neutral_losses': 0,
+                                                        'opponents': [],
+                                                        'net_score': 0}
+                                                        )
+                win_team_dict['wins'] += 1
+                lose_team_dict['losses'] += 1
+                win_team_dict['opponents'].append((lteam, 'W'))
+                lose_team_dict['opponents'].append((wteam, 'L'))
+                win_team_dict['net_score'] += diff
+                lose_team_dict['net_score'] -= diff
+                if row[6] == 'H':
+                    win_team_dict['home_wins'] += 1
+                elif row[6] == 'A':
+                    lose_team_dict['home_losses'] += 1
+                else:
+                    win_team_dict['neutral_wins'] += 1
+                    lose_team_dict['neutral_losses'] += 1
+                self.reg_season[season][wteam] = win_team_dict
+                self.reg_season[season][lteam] = lose_team_dict
 
     def _process_tourney(self, filename):
-        reader = csv.reader(open(filename, 'r'))
-        reader.next()
-        for row in reader:
-            season = row[0]
-            wteam = row[2]
-            lteam = row[4]
-            if wteam < lteam:
-                self.tourney[season][(wteam, lteam)] = 1
-            else:
-                self.tourney[season][(lteam, wteam)] = 0
+        with open(filename, 'r') as f:
+            reader = csv.reader(f)
+            reader.next()
+            for row in reader:
+                season = row[0]
+                wteam = row[2]
+                lteam = row[4]
+                if wteam < lteam:
+                    self.tourney[season][(wteam, lteam)] = 1
+                else:
+                    self.tourney[season][(lteam, wteam)] = 0
+
+    def _process_seeds(self, filename):
+        with open(filename, 'r') as f:
+            reader = csv.reader(f)
+            reader.next()
+            for row in reader:
+                season = row[0]
+                seed = row[1][-2:]
+                region = row[1][0]
+                team = row[2]
+                self.tourney_seeds[season][team] = []
+                #(1,15) -> n-1
+                for i in [str(x) for x in range(1,15)]:
+                    if i != seed:
+                        self.tourney_seeds[season][team].append(0)
+                    else:
+                        self.tourney_seeds[season][team].append(1)
+                #again, n-1
+                for j in ['W', 'X', 'Y']:
+                    if j != season:
+                        self.tourney_seeds[season][team].append(0)
+                    else:
+                        self.tourney_seeds[season][team].append(1)
+
 
 
 
