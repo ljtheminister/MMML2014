@@ -1,21 +1,23 @@
 __author__ = 'Nakis'
-import pandas as pd
+#import pandas as pd
 import csv
 from collections import defaultdict
-import numpy as np
+#import numpy as np
 
 
 class RankingsCalculator(object):
 
-    def __init__(self, reg_season, tourney, seeds):
+    def __init__(self, reg_season, tourney, seeds, power_ratings):
 
         self.reg_season = defaultdict(dict)
         self.tourney = defaultdict(dict)
         self.tourney_seeds = defaultdict(dict)
+        self.power_ranks = defaultdict(dict)
 
         self._process_regular(reg_season)
         self._process_tourney(tourney)
         self._process_seeds(seeds)
+        self._process_power(power_ratings)
 
     def _process_regular(self, filename):
         with open(filename, 'r') as f:
@@ -77,6 +79,7 @@ class RankingsCalculator(object):
                     self.tourney[season][(lteam, wteam)] = 0
 
     def _process_seeds(self, filename):
+        ###NOTE THAT THIS IS CALLED AFTER _PROCESS_REGULAR
         with open(filename, 'r') as f:
             reader = csv.reader(f)
             reader.next()
@@ -94,10 +97,27 @@ class RankingsCalculator(object):
                         self.tourney_seeds[season][team].append(1)
                 #again, n-1
                 for j in ['W', 'X', 'Y']:
-                    if j != season:
+                    if j != region:
                         self.tourney_seeds[season][team].append(0)
                     else:
                         self.tourney_seeds[season][team].append(1)
+
+    def _process_power(self, filename):
+        with open(filename, 'r') as f:
+            reader = csv.reader(f)
+            reader.next()
+            for row in reader:
+                if row[1] != '155':
+                    continue
+                else:
+                    season = row[0]
+                    team = row[3]
+                    power_ranking = float(row[4])
+                    try:
+                        self.reg_season[season][team]['power'] = power_ranking
+                    except KeyError:
+                        pass
+
 
 
 

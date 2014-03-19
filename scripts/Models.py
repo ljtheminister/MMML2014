@@ -9,16 +9,16 @@ from itertools import combinations
 
 class ClassificationModels(object):
 
-    def __init__(self, reg_season, tourney, seeds):
+    def __init__(self, reg_season, tourney, seeds, power_rankings):
 
         """
         Wrapper for sklearn classification models for Kaggle NCAA Tourney
 
         """
-        self.Ranks = RankingsCalculator(reg_season, tourney, seeds)
+        self.Ranks = RankingsCalculator(reg_season, tourney, seeds, power_rankings)
         self.Logit = linear_model.LogisticRegression()
-        self.SVM = svm.SVC()
-        self.RF = ensemble.RandomForestClassifier()
+        self.SVM = svm.SVC(probability=True)
+        self.GBT = ensemble.GradientBoostingClassifier()
         self.team_features = []
 
     def train(self):
@@ -26,11 +26,11 @@ class ClassificationModels(object):
         scaled_X = preprocessing.scale(X[:, :-1])
         Y = X[:, -1]
         self.Logit.fit(scaled_X, Y)
+        self.SVM.fit(scaled_X, Y)
+        self.GBT.fit(scaled_X, Y)
 
-    def predict(self, season):
+    def predict(self, season, a=1, b=1, c=1):
         """
-        Infile is tourney_seeds.csv - since removed
-
         Output is predictions, index
         """
         #team_list = []
@@ -48,16 +48,29 @@ class ClassificationModels(object):
         for (l_team, h_team) in combinations(team_list, 2):
             matrix.append(self.build_row(season, l_team, h_team))
             index.append((l_team, h_team))
-        return self.Logit.predict_proba(preprocessing.scale(np.array(matrix))), index
+        matrix = np.array(matrix)
+        imputer = preprocessing.Imputer(missing_values='NaN', strategy='mean', axis=0)
+        imputer.fit(matrix)
+        logit = self.Logit.predict_proba(preprocessing.scale(matrix))
+        SVM = self.SVM.predict_proba(preprocessing.scale(imputer.transform(matrix)))
+        GBT = self.GBT.predict_proba(preprocessing.scale(matrix))
+        pred = []
+        for i in range(len(logit)):
+            pred.append((a*logit[i][1] + b*SVM[i][1] + c*GBT[i][1])/(a+b+c))
+        return pd.DataFrame(pred, index=index)
+
 
     def score(self):
         X = self.build_matrix()
         scaled_X = preprocessing.scale(X[:, :-1])
+        imputer = preprocessing.Imputer(missing_values='NaN', strategy='mean', axis=0)
+        imputer.fit(scaled_X)
+        scaled_X = imputer.transform(scaled_X)
         Y = X[:, -1]
         svm_scores = cross_validation.cross_val_score(self.SVM, scaled_X, Y, cv=10)
         log_scores = cross_validation.cross_val_score(self.Logit, scaled_X, Y, cv=10)
-        rf_scores = cross_validation.cross_val_score(self.RF, scaled_X, Y, cv=10)
-        return svm_scores, log_scores, rf_scores
+        gbt_scores = cross_validation.cross_val_score(self.GBT, scaled_X, Y, cv=10)
+        return svm_scores.mean(), log_scores.mean(), gbt_scores.mean()
 
     def build_row(self, season, l_team, h_team):
         temp_list = []
@@ -65,11 +78,19 @@ class ClassificationModels(object):
         h_dict = self.Ranks.reg_season[season][h_team]
         temp_list.append(self.Ranks.calc_RPI(season, l_team))
         temp_list.append(l_dict['net_score'])
+        try:
+            temp_list.append(l_dict['power'])
+        except KeyError:
+            temp_list.append(np.NaN)
         temp_list.append(self.Ranks.calc_SOS(season, l_team))
-        #temp_list.append(self.)
         temp_list.append(self.Ranks.calc_RPI(season, h_team))
         temp_list.append(h_dict['net_score'])
+        try:
+            temp_list.append(l_dict['power'])
+        except KeyError:
+            temp_list.append(np.NaN)
         temp_list.append(self.Ranks.calc_SOS(season, h_team))
+
         #additions
         temp_list += self.Ranks.tourney_seeds[season][l_team]
         temp_list += self.Ranks.tourney_seeds[season][h_team]
@@ -87,10 +108,13 @@ class ClassificationModels(object):
 
 
 if __name__ == '__main__':
-    CM = ClassificationModels('../raw_data/regular_season_results.csv', '../raw_data/tourney_results.csv', '../raw_data/tourney_seeds.csv')
+    CM = ClassificationModels('../raw_data/regular_season_results.csv',
+                              '../raw_data/tourney_results.csv',
+                              '../raw_data/tourney_seeds.csv',
+                              '../raw_data/sagp_weekly_ratings.csv')
     #L.train()
     #print L.predict('S')
-    svm, l, rf =  CM.score()
+    svm, l, gbt = CM.score()
     print svm
     print l
-    print rf
+    print gbt
